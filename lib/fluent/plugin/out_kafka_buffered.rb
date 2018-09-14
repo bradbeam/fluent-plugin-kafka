@@ -79,6 +79,11 @@ DESC
 
   config_param :monitoring_list, :array, :default => [],
                :desc => "library to be used to monitor. statsd and datadog are supported"
+  config_param :default_headers, :string, :default => nil,
+               :desc => <<-DESC
+Specify headers for each message
+<key=value,key=value,key=value,...>
+DESC
 
   include Fluent::KafkaPluginUtil::SSLSettings
   include Fluent::KafkaPluginUtil::SaslSettings
@@ -282,6 +287,16 @@ DESC
     end
   end
 
+  def get_headers(recordHeaders)
+    headers = {}
+    for kvheader in (recordHeaders || @default_headers || "" ).split(",") do
+      key,value = kvheader.split("=")
+      headers[key] = value
+    end
+
+    return headers
+  end
+
   def write(chunk)
     tag = chunk.key
     def_topic = @default_topic || tag
@@ -311,6 +326,9 @@ DESC
           partition = (@exclude_partition ? record.delete(@partition) : record[@partition]) || @default_partition
           message_key = (@exclude_message_key ? record.delete(@message_key_key) : record[@message_key_key]) || @default_message_key
 
+	  headers = get_headers(record[@headers])
+	  record.delete(@headers) if record[@headers]
+
           records_by_topic[topic] ||= 0
           bytes_by_topic[topic] ||= 0
 
@@ -331,9 +349,9 @@ DESC
           messages = 0
           messages_bytes = 0
         end
-        log.trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key} and value: #{record_buf}." }
+        log.trace { "message will send to #{topic} with partition_key: #{partition_key}, partition: #{partition}, message_key: #{message_key}, headers: #{headers} and value: #{record_buf}." }
         messages += 1
-        producer.produce2(record_buf, topic: topic, key: message_key, partition_key: partition_key, partition: partition)
+        producer.produce2(record_buf, topic: topic, key: message_key, partition_key: partition_key, partition: partition, headers: headers)
         messages_bytes += record_buf_bytes
 
         records_by_topic[topic] += 1

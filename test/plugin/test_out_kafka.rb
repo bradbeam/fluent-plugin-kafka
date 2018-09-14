@@ -16,7 +16,7 @@ class KafkaOutputTest < Test::Unit::TestCase
   ]
 
   def create_driver(conf = CONFIG, tag='test')
-    Fluent::Test::BufferedOutputTestDriver.new(Fluent::KafkaOutput, tag).configure(conf)
+    Fluent::Test::BufferedOutputTestDriver.new(Fluent::KafkaOutputBuffered, tag).configure(conf)
   end
 
   def test_configure
@@ -54,5 +54,20 @@ class KafkaOutputTest < Test::Unit::TestCase
     time = Time.parse("2011-01-02 13:14:15 UTC").to_i
     d.emit({"a"=>1}, time)
     d.emit({"a"=>2}, time)
+  end
+
+  def test_headers
+    header_config = BASE_CONFIG + %[
+      default_headers key1=value1,key2=value2
+    ]
+
+    d = create_driver(header_config)
+    assert_equal 'key1=value1,key2=value2', d.instance.default_headers
+
+    defHeaders = d.instance.get_headers(nil)
+    assert_equal 'value1', defHeaders['key1']
+
+    newHeaders = d.instance.get_headers("newkey1=newvalue1,newkey2=newvalue2")
+    assert_equal 'newvalue2', newHeaders['newkey2']
   end
 end

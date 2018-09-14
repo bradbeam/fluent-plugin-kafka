@@ -10,7 +10,7 @@ require 'kafka/producer'
 # for out_kafka_buffered
 module Kafka
   class Producer
-    def produce2(value, key: nil, topic:, partition: nil, partition_key: nil)
+    def produce2(value, key: nil, topic:, partition: nil, partition_key: nil, headers: nil)
       create_time = Time.now
 
       message = PendingMessage.new(
@@ -19,7 +19,8 @@ module Kafka
         topic,
         partition,
         partition_key,
-        create_time
+        create_time,
+        headers
       )
 
       @target_topics.add(topic)
@@ -78,7 +79,7 @@ module Kafka
       @pending_message_queue = PendingMessageQueue.new
     end
 
-    def produce(value, key, partition, partition_key)
+    def produce(value, key, partition, partition_key, headers = nil)
       create_time = Time.now
 
       message = PendingMessage.new(
@@ -87,7 +88,8 @@ module Kafka
         @topic,
         partition,
         partition_key,
-        create_time
+        create_time,
+        headers
       )
 
       @pending_message_queue.write(message)
